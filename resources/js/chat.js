@@ -7,6 +7,25 @@ const chatWith = get(".chatWith");
 const typing = get(".typing");
 const chatStatus = get(".chatStatus");
 const chatId = window.location.pathname.substr(6);
+let authUser;
+
+window.onload = function () {
+  axios.get('/auth/user').then(res => {
+    authUser = res.data.authUser;
+  }).then(() => {
+    axios.get(`/chat/${chatId}/get_users`).then(res => {
+      let results = res.data.users.filter(user => user.id !== authUser.id);
+      if (results.length > 0) {
+        chatWith.innerHTML = results[0].name;
+      }
+    }).then(() => {
+      axios.get(`/chat/${chatId}/get_messages`).then(res => {
+        appendMessages(res.data.messages);
+      });
+    });
+  });
+
+}
 
 msgerForm.addEventListener("submit", event => {
   event.preventDefault();
@@ -36,6 +55,20 @@ msgerForm.addEventListener("submit", event => {
 
 });
 
+function appendMessages(messages) {
+  let side = 'left';
+  messages.forEach(message => {
+    side = (message.user_id == authUser.id) ? 'right' : 'left';
+    appendMessage(
+      message.user.name,
+      PERSON_IMG,
+      side,
+      message.content,
+      formatDate(new Date(message.created_at))
+    );
+  })
+}
+
 function appendMessage(name, img, side, text, date) {
   //   Simple solution for small apps
   const msgHTML = `
@@ -54,15 +87,15 @@ function appendMessage(name, img, side, text, date) {
   `;
 
   msgerChat.insertAdjacentHTML("beforeend", msgHTML);
-  msgerChat.scrollTop += 500;
+  scrollToBottom();
 }
 
 // Echo
 
 Echo.join(`chat.${chatId}`)
-.listen('MessageSent', (e) => {
+  .listen('MessageSent', (e) => {
     console.log(e);
-})
+  })
 
 
 // Utils
@@ -78,4 +111,8 @@ function formatDate(date) {
   const m = "0" + date.getMinutes();
 
   return `${d}/${mo}/${y} ${h.slice(-2)}:${m.slice(-2)}`;
+}
+
+function scrollToBottom() {
+  msgerChat.scrollTop = msgerChat.scrollHeight;
 }
